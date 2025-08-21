@@ -1,0 +1,55 @@
+# Credit: https://github.com/CCCC-L/fcitx5-android/blob/master/.github/workflows/ci.yml
+name: Commit CI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build_commit:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-22.04
+        abi:
+          - arm64-v8a
+    env:
+      BUILD_ABI: ${{ matrix.abi }}
+    steps:
+      - name: Fetch source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Android environment
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK
+        run: |
+          sdkmanager --install "cmake;3.22.1"
+
+      - name: Install system dependencies (Ubuntu)
+        if: ${{ matrix.os == 'ubuntu-22.04' }}
+        run: |
+          sudo apt update
+          sudo apt install extra-cmake-modules gettext
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v3
+
+      - name: Build Release APK
+        run: |
+          ./gradlew :app:assembleRelease --stacktrace
+
+      - name: Upload app with plugins
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ matrix.os }}-${{ matrix.abi }}-with-plugins
+          path: app/build/outputs/apk/release/*.apk
